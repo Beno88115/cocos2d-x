@@ -159,6 +159,8 @@ base/ccTypes.cpp \
 base/ccUTF8.cpp \
 base/ccUtils.cpp \
 base/etc1.cpp \
+base/etc2.cpp \
+base/astc.cpp \
 base/pvr.cpp \
 base/s3tc.cpp \
 renderer/CCBatchCommand.cpp \
@@ -280,6 +282,7 @@ LOCAL_STATIC_LIBRARIES += ext_zlib
 LOCAL_STATIC_LIBRARIES += ext_ssl
 LOCAL_STATIC_LIBRARIES += ext_recast
 LOCAL_STATIC_LIBRARIES += ext_bullet
+LOCAL_STATIC_LIBRARIES += ext_astc
 
 LOCAL_WHOLE_STATIC_LIBRARIES := ccandroid
 LOCAL_WHOLE_STATIC_LIBRARIES += cpufeatures
@@ -325,6 +328,7 @@ $(call import-module,tiff/prebuilt/android)
 $(call import-module,webp/prebuilt/android)
 $(call import-module,chipmunk/prebuilt/android)
 $(call import-module,3d)
+$(call import-module,astc)
 $(call import-module,audio/android)
 $(call import-module,editor-support/cocosbuilder)
 $(call import-module,editor-support/cocostudio)

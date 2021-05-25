@@ -103,6 +103,10 @@ public:
         PVRTC2A,
         //! ETC-compressed texture: ETC
         ETC,
+        //! ETC2-compressed texture: ETC2_RGB 4 BPP
+        ETC2_RGB,
+        //! ETC2-compressed texture: ETC2_RGBA 8 BPP
+        ETC2_RGBA,
         //! S3TC-compressed texture: S3TC_Dxt1
         S3TC_DXT1,
         //! S3TC-compressed texture: S3TC_Dxt3
@@ -115,6 +119,34 @@ public:
         ATC_EXPLICIT_ALPHA,
         //! ATITC-compressed texture: ATC_INTERPOLATED_ALPHA
         ATC_INTERPOLATED_ALPHA,
+        //! ASTC-compressed texture: ASTC4X4
+        ASTC4X4,
+        //! ASTC-compressed texture: ASTC5X4
+        ASTC5X4,
+        //! ASTC-compressed texture: ASTC5X5
+        ASTC5X5,
+        //! ASTC-compressed texture: ASTC6X5
+        ASTC6X5,
+        //! ASTC-compressed texture: ASTC6X6
+        ASTC6X6,
+        //! ASTC-compressed texture: ASTC8X5
+        ASTC8X5,
+        //! ASTC-compressed texture: ASTC8X6
+        ASTC8X6,
+        //! ASTC-compressed texture: ASTC8X8
+        ASTC8X8,
+        //! ASTC-compressed texture: ASTC10X5
+        ASTC10X5,
+        //! ASTC-compressed texture: ASTC10X6
+        ASTC10X6,
+        //! ASTC-compressed texture: ASTC10X8
+        ASTC10X8,
+        //! ASTC-compressed texture: ASTC10X10
+        ASTC10X10,
+        //! ASTC-compressed texture: ASTC12X10
+        ASTC12X10,
+        //! ASTC-compressed texture: ASTC12X12
+        ASTC12X12,
         //! Default texture format: AUTO
         DEFAULT = AUTO,
         
@@ -124,7 +156,7 @@ public:
     
     struct PixelFormatInfo {
 
-        PixelFormatInfo(GLenum anInternalFormat, GLenum aFormat, GLenum aType, int aBpp, bool aCompressed, bool anAlpha)
+        PixelFormatInfo(GLenum anInternalFormat, GLenum aFormat, GLenum aType, float aBpp, bool aCompressed, bool anAlpha)
             : internalFormat(anInternalFormat)
             , format(aFormat)
             , type(aType)
@@ -136,7 +168,7 @@ public:
         GLenum internalFormat;
         GLenum format;
         GLenum type;
-        int bpp;
+        float bpp;
         bool compressed;
         bool alpha;
     };

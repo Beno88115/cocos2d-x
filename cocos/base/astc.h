@@ -1,0 +1,25 @@
+/******************************************************************************
+ 
+ ASTC Texture Decompression.
+ astc compression tool: https://github.com/ARM-software/astc-encoder/releases
+ version required: v1.7+
+ command:
+   astcenc-sse4.2 -cl xxx.png xxx.astc 6x6 -medium
+
+ ******************************************************************************/
+
+#ifndef __ASTC_H__
+#define __ASTC_H__
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+    uint8_t decompress_astc(const uint8_t* in, uint8_t* out, uint32_t width, uint32_t height, uint32_t xdim, uint32_t ydim, uint32_t datalen);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif //__ASTC_H__

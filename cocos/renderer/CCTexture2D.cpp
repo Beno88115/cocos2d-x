@@ -71,6 +71,24 @@ namespace {
         PixelFormatInfoMapValue(Texture2D::PixelFormat::I8, Texture2D::PixelFormatInfo(GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, 8, false, false)),
         PixelFormatInfoMapValue(Texture2D::PixelFormat::AI88, Texture2D::PixelFormatInfo(GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, 16, false, true)),
         
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ETC2_RGB, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGB8_ETC2, 0xFFFFFFFF, 0xFFFFFFFF, 4, true, false)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ETC2_RGBA, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA8_ETC2_EAC, 0xFFFFFFFF, 0xFFFFFFFF, 8, true, true)),
+        
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC4X4, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_4x4_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 8.0f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC5X4, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_5x4_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 6.4f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC5X5, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_5x5_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 5.12f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC6X5, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_6x5_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 4.27f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC6X6, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_6x6_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 3.56f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC8X5, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_8x5_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 3.2f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC8X6, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_8x6_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 2.67f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC8X8, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_8x8_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 2.0f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC10X5, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_10x5_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 2.56f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC10X6, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_10x6_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 2.13f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC10X8, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_10x8_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 1.6f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC10X10, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_10x10_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 1.28f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC12X10, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_12x10_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 1.07f, true, true)),
+        PixelFormatInfoMapValue(Texture2D::PixelFormat::ASTC12X12, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_ASTC_12x12_KHR, 0xFFFFFFFF, 0xFFFFFFFF, 0.89f, true, true)),
+        
 #ifdef GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG
         PixelFormatInfoMapValue(Texture2D::PixelFormat::PVRTC2, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG, 0xFFFFFFFF, 0xFFFFFFFF, 2, true, false)),
         PixelFormatInfoMapValue(Texture2D::PixelFormat::PVRTC2A, Texture2D::PixelFormatInfo(GL_COMPRESSED_RGBA_PVRTC_2BPPV1_IMG, 0xFFFFFFFF, 0xFFFFFFFF, 2, true, true)),
@@ -588,7 +606,9 @@ bool Texture2D::initWithMipmaps(MipmapInfo* mipmaps, int mipmapsNum, PixelFormat
 
     if (info.compressed && !Configuration::getInstance()->supportsPVRTC()
                         && !Configuration::getInstance()->supportsETC()
+                        && !Configuration::getInstance()->supportsETC2()
                         && !Configuration::getInstance()->supportsS3TC()
+                        && !Configuration::getInstance()->supportsASTC()
                         && !Configuration::getInstance()->supportsATITC())
     {
         CCLOG("cocos2d: WARNING: PVRTC/ETC images are not supported");
@@ -598,7 +618,7 @@ bool Texture2D::initWithMipmaps(MipmapInfo* mipmaps, int mipmapsNum, PixelFormat
     //Set the row align only when mipmapsNum == 1 and the data is uncompressed
     if (mipmapsNum == 1 && !info.compressed)
     {
-        unsigned int bytesPerRow = pixelsWide * info.bpp / 8;
+        unsigned int bytesPerRow = pixelsWide * info.bpp / 8.f;
 
         if(bytesPerRow % 8 == 0)
         {

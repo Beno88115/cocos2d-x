@@ -87,6 +87,9 @@ extern "C"
 #endif //CC_USE_TIFF
 
 #include "base/etc1.h"
+#include "base/etc2.h"
+
+#include "base/astc.h"
     
 #if CC_USE_JPEG
 #include "jpeglib.h"
@@ -116,6 +119,8 @@ extern "C"
 #define CC_GL_ATC_RGB_AMD                                          0x8C92
 #define CC_GL_ATC_RGBA_EXPLICIT_ALPHA_AMD                          0x8C93
 #define CC_GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD                      0x87EE
+
+#define ASTC_MAGIC_FILE_CONSTANT                                   0x5CA1AB13
 
 NS_CC_BEGIN
 
@@ -428,6 +433,24 @@ namespace
 
 //////////////////////////////////////////////////////////////////////////
 
+//struct and data for ASTC struct
+namespace
+{
+    struct ASTCTexHeader
+    {
+        uint8_t magic[4];
+        uint8_t blockdim_x;
+        uint8_t blockdim_y;
+        uint8_t blockdim_z;
+        uint8_t xsize[3];            // x-size = xsize[0] + xsize[1] + xsize[2]
+        uint8_t ysize[3];            // x-size, y-size and z-size are given in texels;
+        uint8_t zsize[3];            // block count is inferred
+    };
+}
+//atitc struct end
+
+//////////////////////////////////////////////////////////////////////////
+
 namespace
 {
     typedef struct 
@@ -584,8 +607,14 @@ bool Image::initWithImageData(const unsigned char * data, ssize_t dataLen)
         case Format::ETC:
             ret = initWithETCData(unpackedData, unpackedLen);
             break;
+        case Format::ETC2:
+            ret = initWithETC2Data(unpackedData, unpackedLen);
+            break;
         case Format::S3TC:
             ret = initWithS3TCData(unpackedData, unpackedLen);
+            break;
+        case Format::ASTC:
+            ret = initWithASTCData(unpackedData, unpackedLen);
             break;
         case Format::ATITC:
             ret = initWithATITCData(unpackedData, unpackedLen);
@@ -636,6 +665,10 @@ bool Image::isEtc(const unsigned char * data, ssize_t /*dataLen*/)
     return etc1_pkm_is_valid((etc1_byte*)data) ? true : false;
 }
 
+bool Image::isEtc2(const unsigned char * data, ssize_t dataLen)
+{
+    return !!etc2_pkm_is_valid((etc2_byte*)data);
+}
 
 bool Image::isS3TC(const unsigned char * data, ssize_t /*dataLen*/)
 {
@@ -658,6 +691,15 @@ bool Image::isATITC(const unsigned char *data, ssize_t /*dataLen*/)
         return false;
     }
     return true;
+}
+
+bool Image::isASTC(const unsigned char *data, ssize_t /*dataLen*/)
+{
+    ASTCTexHeader* hdr = (ASTCTexHeader*)data;
+
+    uint32_t magicval = hdr->magic[0] + 256 * (uint32_t)(hdr->magic[1]) + 65536 * (uint32_t)(hdr->magic[2]) + 16777216 * (uint32_t)(hdr->magic[3]);
+
+    return (magicval == ASTC_MAGIC_FILE_CONSTANT);
 }
 
 bool Image::isJpg(const unsigned char * data, ssize_t dataLen)
@@ -739,6 +781,10 @@ Image::Format Image::detectFormat(const unsigned char * data, ssize_t dataLen)
     {
         return Format::ETC;
     }
+    else if (isEtc2(data, dataLen))
+    {
+        return Format::ETC2;
+    }
     else if (isS3TC(data, dataLen))
     {
         return Format::S3TC;
@@ -746,6 +792,10 @@ Image::Format Image::detectFormat(const unsigned char * data, ssize_t dataLen)
     else if (isATITC(data, dataLen))
     {
         return Format::ATITC;
+    }
+    else if (isASTC(data, dataLen))
+    {
+        return Format::ASTC;
     }
     else
     {
@@ -1771,6 +1821,149 @@ bool Image::initWithETCData(const unsigned char * data, ssize_t dataLen)
         
         return true;
     }
+    return false;
+}
+
+bool Image::initWithETC2Data(const unsigned char * data, ssize_t dataLen)
+{
+    const etc2_byte* header = static_cast<const etc2_byte*>(data);
+
+    do {
+        //check the data
+        if (!etc2_pkm_is_valid(header))
+            break;
+
+        _width = etc2_pkm_get_width(header);
+        _height = etc2_pkm_get_height(header);
+
+        if (0 == _width || 0 == _height)
+            break;
+
+        etc2_uint32 format = etc2_pkm_get_format(header);
+
+        // only support ETC2_RGBA_NO_MIPMAPS and ETC2_RGB_NO_MIPMAPS
+        assert(format == ETC2_RGBA_NO_MIPMAPS || format == ETC2_RGB_NO_MIPMAPS);
+
+        if (Configuration::getInstance()->supportsETC2()) {
+            _renderFormat = format == ETC2_RGBA_NO_MIPMAPS ? Texture2D::PixelFormat::ETC2_RGBA : Texture2D::PixelFormat::ETC2_RGB;
+
+            _dataLen = dataLen - ETC2_PKM_HEADER_SIZE;
+            _data = static_cast<unsigned char*>(malloc(_dataLen * sizeof(unsigned char)));
+            memcpy(_data, (unsigned char*)data + ETC2_PKM_HEADER_SIZE, _dataLen);
+        }
+        else {
+            CCLOG("cocos2d: Hardware ETC2 decoder not present. Using software decoder");
+
+            // if device do not support ETC2, decode texture by software
+            // etc2_decode_image always decode to RGBA8888
+            _dataLen = _width * _height * 4;
+            _data = static_cast<uint8_t*>(malloc(_dataLen));
+            if (etc2_decode_image(format, static_cast<const uint8_t*>(data) + ETC2_PKM_HEADER_SIZE, static_cast<etc2_byte*>(_data), _width, _height) != 0)
+            {
+                // software decode fail, release pixels data
+                CC_SAFE_FREE(_data);
+                _dataLen = 0;
+                break;
+            }
+            _renderFormat = Texture2D::PixelFormat::RGBA8888;
+        }
+        _hasPremultipliedAlpha = true;
+
+        return true;
+    } while (false);
+
+    return false;
+}
+
+bool Image::initWithASTCData(const unsigned char *data, ssize_t dataLen)
+{
+    ASTCTexHeader* header = (ASTCTexHeader*)data;
+
+    do {
+        _width = header->xsize[0] + 256 * header->xsize[1] + 65536 * header->xsize[2];
+        _height = header->ysize[0] + 256 * header->ysize[1] + 65536 * header->ysize[2];
+
+        if (0 == _width || 0 == _height)
+            break;
+
+        uint8_t xdim = header->blockdim_x;
+        uint8_t ydim = header->blockdim_y;
+
+        if (xdim < 4 || ydim < 4)
+        {
+            CCLOG("cocos2d: The ASTC block with and height should be >= 4");
+            break;
+        }
+
+        if (Configuration::getInstance()->supportsASTC())
+        {
+            if (xdim == 4 && ydim == 4) {
+                _renderFormat = Texture2D::PixelFormat::ASTC4X4;
+            }
+            else if (xdim == 5 && ydim == 4) {
+                _renderFormat = Texture2D::PixelFormat::ASTC5X4;
+            }
+            else if (xdim == 5 && ydim == 5) {
+                _renderFormat = Texture2D::PixelFormat::ASTC5X5;
+            }
+            else if (xdim == 6 && ydim == 5) {
+                _renderFormat = Texture2D::PixelFormat::ASTC6X5;
+            }
+            else if (xdim == 6 && ydim == 6) {
+                _renderFormat = Texture2D::PixelFormat::ASTC6X6;
+            }
+            else if (xdim == 8 && ydim == 5) {
+                _renderFormat = Texture2D::PixelFormat::ASTC8X5;
+            }
+            else if (xdim == 8 && ydim == 6) {
+                _renderFormat = Texture2D::PixelFormat::ASTC8X6;
+            }
+            else if (xdim == 8 && ydim == 8) {
+                _renderFormat = Texture2D::PixelFormat::ASTC8X8;
+            }
+            else if (xdim == 10 && ydim == 5) {
+                _renderFormat = Texture2D::PixelFormat::ASTC10X5;
+            }
+            else if (xdim == 10 && ydim == 6) {
+                _renderFormat = Texture2D::PixelFormat::ASTC10X6;
+            }
+            else if (xdim == 10 && ydim == 8) {
+                _renderFormat = Texture2D::PixelFormat::ASTC10X8;
+            }
+            else if (xdim == 10 && ydim == 10) {
+                _renderFormat = Texture2D::PixelFormat::ASTC10X10;
+            }
+            else if (xdim == 12 && ydim == 10) {
+                _renderFormat = Texture2D::PixelFormat::ASTC12X10;
+            }
+            else if (xdim == 12 && ydim == 12) {
+                _renderFormat = Texture2D::PixelFormat::ASTC12X12;
+            }
+
+            _dataLen = dataLen - sizeof(ASTCTexHeader);
+            _data = static_cast<unsigned char*>(malloc(_dataLen * sizeof(unsigned char)));
+            memcpy(_data, (unsigned char*)data + sizeof(ASTCTexHeader), _dataLen);
+        }
+        else
+        {
+            CCLOG("cocos2d: Hardware ASTC decoder not present. Using software decoder");
+
+            _dataLen = _width * _height * 4;
+            _data = static_cast<uint8_t*>(malloc(_dataLen));
+            if (decompress_astc(static_cast<const unsigned char*>(data) + sizeof(ASTCTexHeader), _data, _width, _height, xdim, ydim, (uint32_t)_dataLen) != 0) {
+                CC_SAFE_FREE(_data);
+                _dataLen = 0;
+                break;
+            }
+
+            _renderFormat = Texture2D::PixelFormat::RGBA8888;
+        }
+
+        _hasPremultipliedAlpha = true;
+
+        return true;
+    } while (false);
+
     return false;
 }
 

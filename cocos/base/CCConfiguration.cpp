@@ -33,6 +33,10 @@ THE SOFTWARE.
 
 NS_CC_BEGIN
 
+#ifndef GL_COMPRESSED_RGBA8_ETC2_EAC
+#define GL_COMPRESSED_RGBA8_ETC2_EAC 0x9278
+#endif
+
 extern const char* cocos2dVersion();
 
 Configuration* Configuration::s_sharedConfiguration = nullptr;
@@ -44,6 +48,8 @@ Configuration::Configuration()
 , _maxModelviewStackDepth(0)
 , _supportsPVRTC(false)
 , _supportsETC1(false)
+, _supportsASTC(false)
+, _supportsETC2(false)
 , _supportsS3TC(false)
 , _supportsATITC(false)
 , _supportsNPOT(false)
@@ -111,6 +117,35 @@ std::string Configuration::getInfo() const
     return forDump.getDescription();
 }
 
+bool checkSupportsCompressedFormat(int compressedFormat)
+{
+    const int MAX_ALLOCA_SIZE = 512;
+    
+    GLint numFormats = 0;
+    glGetIntegerv(GL_NUM_COMPRESSED_TEXTURE_FORMATS, &numFormats);
+    GLint* formats = nullptr;
+    int buffersize = numFormats * sizeof(GLint);
+    if(buffersize <= MAX_ALLOCA_SIZE)
+        formats = (GLint*)alloca(buffersize);
+    else
+        formats = (GLint*)malloc(buffersize);
+    glGetIntegerv(GL_COMPRESSED_TEXTURE_FORMATS, formats);
+
+    bool supported = false;
+    for (GLint i = 0; i < numFormats; ++i)
+    {
+        if (formats[i] == compressedFormat) {
+            supported = true;
+            break;
+        }
+    }
+
+    if (buffersize > MAX_ALLOCA_SIZE)
+        free(formats);
+
+    return supported;
+}
+
 void Configuration::gatherGPUInfo()
 {
 	_valueDict["gl.vendor"] = Value((const char*)glGetString(GL_VENDOR));
@@ -133,6 +168,9 @@ void Configuration::gatherGPUInfo()
     _supportsETC1 = checkForGLExtension("GL_OES_compressed_ETC1_RGB8_texture");
     _valueDict["gl.supports_ETC1"] = Value(_supportsETC1);
     
+    _supportsETC2 = checkSupportsCompressedFormat(GL_COMPRESSED_RGBA8_ETC2_EAC);
+    _valueDict["gl.supports_ETC2"] = Value(_supportsETC2);
+    
     _supportsS3TC = checkForGLExtension("GL_EXT_texture_compression_s3tc");
     _valueDict["gl.supports_S3TC"] = Value(_supportsS3TC);
     
@@ -141,6 +179,9 @@ void Configuration::gatherGPUInfo()
     
     _supportsPVRTC = checkForGLExtension("GL_IMG_texture_compression_pvrtc");
 	_valueDict["gl.supports_PVRTC"] = Value(_supportsPVRTC);
+    
+    _supportsASTC = checkForGLExtension("GL_KHR_texture_compression_astc_ldr");
+    _valueDict["gl.supports_ASTC"] = Value(_supportsASTC);
 
     _supportsNPOT = true;
 	_valueDict["gl.supports_NPOT"] = Value(_supportsNPOT);
@@ -245,6 +286,11 @@ bool Configuration::supportsETC() const
 #endif
 }
 
+bool Configuration::supportsETC2() const
+{
+    return _supportsETC2;
+}
+
 bool Configuration::supportsS3TC() const
 {
 #ifdef GL_EXT_texture_compression_s3tc
@@ -257,6 +303,11 @@ bool Configuration::supportsS3TC() const
 bool Configuration::supportsATITC() const
 {
     return _supportsATITC;
+}
+
+bool Configuration::supportsASTC() const
+{
+    return _supportsASTC;
 }
 
 bool Configuration::supportsBGRA8888() const
