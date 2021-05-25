@@ -158,7 +158,7 @@ Main features
    * Resolution Independent
    * Language: C++, with Lua and JavaScript bindings
    * Open Source Commercial Friendly(MIT): Compatible with open and closed source projects
-   * OpenGL ES 2.0 (mobile) / OpenGL 2.1 (desktop) based
+   * OpenGL ES 3.0+ (mobile) / OpenGL 2.1 (desktop) based
 
 Build Requirements
 ------------------
