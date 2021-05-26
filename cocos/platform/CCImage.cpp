@@ -261,6 +261,8 @@ namespace
         _pixel3_formathash::value_type(PVR3TexturePixelFormat::PVRTC4BPP_RGBA,      Texture2D::PixelFormat::PVRTC4A),
 
         _pixel3_formathash::value_type(PVR3TexturePixelFormat::ETC1,        Texture2D::PixelFormat::ETC),
+        _pixel3_formathash::value_type(PVR3TexturePixelFormat::ETC2_RGB,    Texture2D::PixelFormat::ETC2_RGB),
+        _pixel3_formathash::value_type(PVR3TexturePixelFormat::ETC2_RGBA,    Texture2D::PixelFormat::ETC2_RGBA),
     };
         
     static const int PVR3_MAX_TABLE_ELEMENTS = sizeof(v3_pixel_formathash_value) / sizeof(v3_pixel_formathash_value[0]);
@@ -1430,6 +1432,11 @@ namespace
             case PVR3TexturePixelFormat::L8:
             case PVR3TexturePixelFormat::LA88:
                 return true;
+                
+            case PVR3TexturePixelFormat::ETC2_RGB:
+            case PVR3TexturePixelFormat::ETC2_RGBA:
+            case PVR3TexturePixelFormat::ETC2_RGBA1:
+                return Configuration::getInstance()->supportsETC2();
                 
             default:
                 return false;

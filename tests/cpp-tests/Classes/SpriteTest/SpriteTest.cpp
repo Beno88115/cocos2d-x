@@ -62,6 +62,7 @@ SpriteTests::SpriteTests()
     ADD_TEST_CASE(Sprite1ETC1Alpha);
     ADD_TEST_CASE(SpriteETC2Alpha);
     ADD_TEST_CASE(SpriteASTCAlpha);
+    ADD_TEST_CASE(SpritePVRETC2Alpha);
     ADD_TEST_CASE(SpriteBatchNode1);
     ADD_TEST_CASE(SpriteAnchorPoint);
     ADD_TEST_CASE(SpriteBatchNodeAnchorPoint);
@@ -428,6 +429,80 @@ std::string SpriteASTCAlpha::title() const
 }
 
 std::string SpriteASTCAlpha::subtitle() const
+{
+    return "Tap screen to add more sprites";
+}
+
+//------------------------------------------------------------------
+//
+// SpritePVRETC2Alpha
+//
+//------------------------------------------------------------------
+
+SpritePVRETC2Alpha::SpritePVRETC2Alpha()
+{
+    auto listener = EventListenerTouchAllAtOnce::create();
+    listener->onTouchesEnded = CC_CALLBACK_2(SpritePVRETC2Alpha::onTouchesEnded, this);
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
+}
+
+bool SpritePVRETC2Alpha::init()
+{
+    if (!SpriteTestDemo::init())
+        return false;
+
+    _background = Sprite::create("Images/background3.pvr");
+    auto s = Director::getInstance()->getWinSize();
+    _background->setPosition(Vec2(s.width / 2, s.height / 2));
+    this->addChild(_background);
+
+    addNewSpriteWithCoords(Vec2(s.width / 2, s.height / 2));
+    return true;
+}
+
+void SpritePVRETC2Alpha::addNewSpriteWithCoords(Vec2 p)
+{
+    auto sprite = Sprite::create("Images/hole_effect.pvr");
+    
+    _background->addChild(sprite);
+
+    sprite->setPosition(Vec2(p.x, p.y));
+
+    ActionInterval* action;
+    float random = CCRANDOM_0_1();
+
+    if (random < 0.20)
+        action = ScaleBy::create(3, 2);
+    else if (random < 0.40)
+        action = RotateBy::create(3, 360);
+    else if (random < 0.60)
+        action = Blink::create(1, 3);
+    else if (random < 0.8)
+        action = TintBy::create(2, 0, -255, -255);
+    else
+        action = FadeOut::create(2);
+    auto action_back = action->reverse();
+    auto seq = Sequence::create(action, action_back, nullptr);
+
+    sprite->runAction(RepeatForever::create(seq));
+}
+
+void SpritePVRETC2Alpha::onTouchesEnded(const std::vector<Touch*>& touches, Event* event)
+{
+    for (auto touch : touches)
+    {
+        auto location = touch->getLocation();
+
+        addNewSpriteWithCoords(location);
+    }
+}
+
+std::string SpritePVRETC2Alpha::title() const
+{
+    return "Testing Sprite PVRETC2 Alpha support";
+}
+
+std::string SpritePVRETC2Alpha::subtitle() const
 {
     return "Tap screen to add more sprites";
 }
