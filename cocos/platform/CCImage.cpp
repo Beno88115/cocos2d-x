@@ -2183,6 +2183,25 @@ bool Image::initWithS3TCData(const unsigned char * data, ssize_t dataLen)
     return true;
 }
 
+namespace
+{
+    bool testFormatForATITCSupport(uint32_t internalFormat)
+    {
+        switch (internalFormat) {
+            case CC_GL_ATC_RGB_AMD:
+            case CC_GL_ATC_RGBA_EXPLICIT_ALPHA_AMD:
+            case CC_GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
+                return Configuration::getInstance()->supportsATITC();
+                
+            case GL_COMPRESSED_RGB8_ETC2:
+            case GL_COMPRESSED_RGBA8_ETC2_EAC:
+                return Configuration::getInstance()->supportsETC2();
+                
+            default:
+                return false;
+        }
+    }
+}
 
 bool Image::initWithATITCData(const unsigned char *data, ssize_t dataLen)
 {
@@ -2204,6 +2223,12 @@ bool Image::initWithATITCData(const unsigned char *data, ssize_t dataLen)
         case CC_GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
             blockSize = 16;
             break;
+        case GL_COMPRESSED_RGB8_ETC2:
+            blockSize = 4;
+            break;
+        case GL_COMPRESSED_RGBA8_ETC2_EAC:
+            blockSize = 8;
+            break;
         default:
             break;
     }
@@ -2215,7 +2240,7 @@ bool Image::initWithATITCData(const unsigned char *data, ssize_t dataLen)
     int width = _width;
     int height = _height;
     
-    if (Configuration::getInstance()->supportsATITC())  //compressed data length
+    if (testFormatForATITCSupport(header->glInternalFormat))  //compressed data length
     {
         _dataLen = dataLen - sizeof(ATITCTexHeader) - header->bytesOfKeyValueData - 4;
         _data = static_cast<unsigned char*>(malloc(_dataLen * sizeof(unsigned char)));
@@ -2248,7 +2273,7 @@ bool Image::initWithATITCData(const unsigned char *data, ssize_t dataLen)
         
         int size = ((width+3)/4)*((height+3)/4)*blockSize;
         
-        if (Configuration::getInstance()->supportsATITC())
+        if (testFormatForATITCSupport(header->glInternalFormat))
         {
             /* decode texture through hardware */
             
@@ -2264,6 +2289,12 @@ bool Image::initWithATITCData(const unsigned char *data, ssize_t dataLen)
                     break;
                 case CC_GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
                     _renderFormat = Texture2D::PixelFormat::ATC_INTERPOLATED_ALPHA;
+                    break;
+                case GL_COMPRESSED_RGB8_ETC2:
+                    _renderFormat = Texture2D::PixelFormat::ETC2_RGB;
+                    break;
+                case GL_COMPRESSED_RGBA8_ETC2_EAC:
+                    _renderFormat = Texture2D::PixelFormat::ETC2_RGBA;
                     break;
                 default:
                     break;
@@ -2293,6 +2324,14 @@ bool Image::initWithATITCData(const unsigned char *data, ssize_t dataLen)
                     break;
                 case CC_GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
                     atitc_decode(pixelData + encodeOffset, &decodeImageData[0], width, height, ATITCDecodeFlag::ATC_INTERPOLATED_ALPHA);
+                    break;
+                case GL_COMPRESSED_RGB8_ETC2:
+                    // only support ETC2_RGB_NO_MIPMAPS
+                    etc2_decode_image(ETC2_RGB_NO_MIPMAPS, pixelData + encodeOffset, static_cast<etc2_byte*>(&decodeImageData[0]), width, height);
+                    break;
+                case GL_COMPRESSED_RGBA8_ETC2_EAC:
+                    // only support ETC2_RGBA_NO_MIPMAPS
+                    etc2_decode_image(ETC2_RGBA_NO_MIPMAPS, pixelData + encodeOffset, static_cast<etc2_byte*>(&decodeImageData[0]), width, height);
                     break;
                 default:
                     break;
